@@ -8,28 +8,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   const btnAudio = document.getElementById("btnAudio");
 
   // ===============================
-  // 🔐 CARREGAR CONFIG (keys.json)
+  // 🔐 CONFIG (keys.json)
   // ===============================
   let endpoint, deployment, apiKey, apiVersion;
 
   async function carregarConfig() {
-    try {
-      const response = await fetch("keys.json");
-      const config = await response.json();
+    const response = await fetch("keys.json");
+    const config = await response.json();
 
-      endpoint = config.endpoint;
-      deployment = config.deployment;
-      apiKey = config.apiKey;
-      apiVersion = config.apiVersion;
-
-      console.log("🔐 Config carregada com sucesso");
-    } catch (e) {
-      console.error("Erro ao carregar keys.json", e);
-      alert("Erro ao carregar configuração da IA");
-    }
+    endpoint = config.endpoint;
+    deployment = config.deployment;
+    apiKey = config.apiKey;
+    apiVersion = config.apiVersion;
   }
 
-  await carregarConfig(); // 🔴 garante que carregou antes de usar
+  await carregarConfig();
 
   // ===============================
   // 🌗 TEMA
@@ -47,21 +40,38 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // ===============================
-  // 🔊 FALA
+  // 🔊 AZURE SPEECH (SUBSTITUÍDO)
   // ===============================
   function falar(texto) {
-    speechSynthesis.cancel();
 
-    const speech = new SpeechSynthesisUtterance(texto);
-    speech.lang = "pt-BR";
+    if (!texto || typeof SpeechSDK === "undefined") return;
 
     if (recognition && ouvindo) recognition.stop();
 
-    speech.onend = () => {
-      if (ouvindo) recognition.start();
-    };
+    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(apiKey, "eastus2");
+    speechConfig.speechSynthesisVoiceName = "pt-BR-AntonioNeural";
 
-    speechSynthesis.speak(speech);
+    const audioConfig = SpeechSDK.AudioConfig.fromDefaultSpeakerOutput();
+    const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
+
+    synthesizer.speakTextAsync(
+      texto,
+      result => {
+        synthesizer.close();
+
+        if (recognition && ouvindo) {
+          recognition.start();
+        }
+      },
+      error => {
+        console.error("Erro TTS:", error);
+        synthesizer.close();
+
+        if (recognition && ouvindo) {
+          recognition.start();
+        }
+      }
+    );
   }
 
   // ===============================
@@ -81,16 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    recognition.onstart = () => {
-      if (modoAudio) {
-        btnAudio.style.background = "red";
-      } else {
-        btnMic.classList.add("gravando");
-      }
-    };
-
     recognition.onend = () => {
-      btnMic.classList.remove("gravando");
       if (ouvindo) setTimeout(() => recognition.start(), 800);
     };
 
@@ -99,11 +100,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (bloqueado) return;
 
       const result = event.results[event.results.length - 1];
-
       if (!result.isFinal) return;
 
       const texto = result[0].transcript.trim();
-
       if (!texto) return;
 
       bloqueado = true;
@@ -120,28 +119,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // 🎤 botão mic
   btnMic.onclick = () => {
     if (!recognition) return;
 
     ouvindo = !ouvindo;
 
-    if (ouvindo) {
-      recognition.start();
-    } else {
-      recognition.stop();
-    }
+    if (ouvindo) recognition.start();
+    else recognition.stop();
   };
 
-  // 🔊 botão áudio contínuo
   btnAudio.onclick = () => {
 
     modoAudio = !modoAudio;
 
     if (modoAudio) {
       btnAudio.innerText = "🛑 Parar";
-      btnAudio.style.background = "crimson";
-
       btnMic.style.display = "none";
 
       ouvindo = true;
@@ -149,8 +141,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } else {
       btnAudio.innerText = "🔊 Áudio";
-      btnAudio.style.background = "";
-
       btnMic.style.display = "inline-block";
 
       ouvindo = false;
@@ -168,11 +158,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   async function enviar(textoVoz = null) {
-
-    if (!endpoint || !apiKey) {
-      alert("Configuração da IA não carregada");
-      return;
-    }
 
     const pergunta = textoVoz || input.value.trim();
     if (!pergunta) return;
@@ -237,7 +222,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       bloqueado = false;
       btn.disabled = false;
 
-    } catch (error) {
+    } catch {
 
       document.getElementById("typingContainer")?.remove();
 
