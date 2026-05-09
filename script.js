@@ -192,10 +192,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "Você é Vlad Tepes, vampiro assistente do SENAI." },
+            { role: "system", content: "Você é Vlad Tepes, vampiro assistente do SENAI.Não utilize markdown." },
             { role: "user", content: pergunta }
           ],
-          max_completion_tokens: 5000
+          max_completion_tokens: 9000
         })
       });
 
